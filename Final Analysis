@@ -1,0 +1,68 @@
+#Project Draft 2
+library(ElemStatLearn)
+library(AppliedPredictiveModeling)
+library(caret)
+library(randomForest)
+setwd("/Users/jlund4/Desktop/Machine Learning/Project")
+## Load data set that I'll use for prediction
+testing = read.csv("pml-testing.csv")
+## Many of the columns have missing data, I drop those columns and then 
+## import from the training set only the corresponding variables
+clean_test = testing[,colSums(is.na(testing)) != nrow(testing)]
+columns = colnames(clean_test)
+numbers <- which(names(testing)%in%columns)
+data = read.csv("pml-training.csv")[ ,numbers]
+## I need to make sure the class of data is the same across the two data sets
+comparison <- which(sapply(data, class)==sapply(clean_test, class))
+clean_test[,-comparison]<-sapply(clean_test[,-comparison], as.numeric)
+comparison <- which(sapply(data, class)==sapply(clean_test, class))
+
+flds <- createFolds(y = data$classe, k = 4, list = TRUE, returnTrain = FALSE)
+names(flds)[1]<-"train"
+names(flds)[2]<-"test1"
+test1 <- data[flds$test1,]
+training <- data[flds$train,]
+#removed X and timestamps as they are correlated over time. This is not helpful
+#in predicting on the testing set and leads to overfittins
+
+## Run the model on training set
+modFit <- randomForest(classe~ user_name + roll_belt +pitch_belt  + 
+yaw_belt + total_accel_belt + gyros_belt_x + gyros_belt_y + 
+gyros_belt_z     +    accel_belt_x   +     
+accel_belt_y    +     accel_belt_z  +       magnet_belt_x     +  
+magnet_belt_y     +   magnet_belt_z   +     roll_arm    +        
+pitch_arm         +   yaw_arm         +     total_accel_arm +    
+gyros_arm_x       +   gyros_arm_y     +     gyros_arm_z     +    
+accel_arm_x       +   accel_arm_y     +     accel_arm_z     +    
+magnet_arm_x      +   magnet_arm_y    +     magnet_arm_z  +      
+roll_dumbbell     +   pitch_dumbbell  +     yaw_dumbbell  +      
+total_accel_dumbbell +gyros_dumbbell_x  +   gyros_dumbbell_y +   
+gyros_dumbbell_z    + accel_dumbbell_x  +   accel_dumbbell_y +
+accel_dumbbell_z    + magnet_dumbbell_x +   magnet_dumbbell_y + 
+roll_forearm      +   pitch_forearm  +     
+yaw_forearm        +  total_accel_forearm + gyros_forearm_x +    
+gyros_forearm_y   +   gyros_forearm_z    +  accel_forearm_x +    
+accel_forearm_y   +   accel_forearm_z    +  magnet_forearm_x + 
+magnet_dumbbell_z + magnet_forearm_y + magnet_forearm_z, data = data)
+
+## Note I generated the model first with a training set, and did cross validation
+## on the rest of the data. Afterwards I used the full training set to estimate  
+## the model. 
+
+## Cross validation of model
+testprediction <- predict(modFit, test1)
+table(testprediction, test1$classe)
+## Generate predictions
+prediction <- predict(modFit, testing)
+
+## I use the following function to generate txt files for each prediction:
+answers = prediction
+pml_write_files = function(x){
+    n = length(x)
+    for(i in 1:n){
+        filename = paste0("problem_id_",i,".txt")
+        write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+    }
+}
+pml_write_files(answers)
+
